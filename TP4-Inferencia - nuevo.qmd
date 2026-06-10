@@ -1,0 +1,247 @@
+---
+title: "TP4-Inferencia"
+format: html
+editor: visual
+author: "Jacinta Matas Terranova,  Martina Monastra, Maria Yunes Marangoni"
+---
+
+## Trabajo Práctico 4: Test de hipótesis para el play-delay de Netflix
+
+Cargo los datos
+
+```{r}
+historicos <- read.csv("datos_historicos.csv")
+nuevos     <- read.csv("datos_nuevos.csv")
+
+x_historico <- historicos[[1]]
+x_new  <- nuevos[[1]]
+
+n_historico <- length(x_historico)
+n      <- length(x_new)
+```
+
+## Ejercicio 1: Validación visual de los datos históricos
+
+(1.a) Media y varianza muestral de los datos históricos
+
+```{r}
+mu0     <- mean(x_historico)
+sigma2_0 <- var(x_historico)              
+sigma_0  <- sqrt(sigma2_0)
+
+cat("mu0      =", round(mu0, 4), "\n")
+cat("sigma2_0 =", round(sigma2_0, 4), "\n")
+cat("sigma_0  =", round(sigma_0, 4), "\n\n")
+```
+
+$\mu_0 = 42,171$
+
+$\sigma^2_0 = 54,309$
+
+(1.b) Histograma de densidad
+
+```{r}
+hist(x_historico,
+     breaks = 50,
+     probability = TRUE,
+     col = "steelblue",
+     border = "white",
+     main = "Histograma de los datos históricos con N(mu0, sigma2_0)",
+     xlab = "play-delay",
+     ylab = "Densidad")
+curve(dnorm(x, mean = mu0, sd = sigma_0),
+      add = TRUE, col = "red", lwd = 2)
+legend("topright",
+       legend = c("Datos históricos", bquote("N(" * .(round(mu0,2)) * ", " * .(round(sigma2_0,2)) * ")")),
+       col = c("steelblue", "red"),
+       lwd = c(NA, 2), pch = c(15, NA))
+```
+
+La curva de la normal encaja muy bien con el histograma de densidad de los datos históricos, por ende tiene sentido asumir que los datos se distribuyen de forma normal.
+
+### Ejercicio 2: Grupo de prueba (nueva versión)
+
+(2.a) Estimación de la esperanza del play-delay (la actualización)
+
+```{r}
+x_bar <- mean(x_new)
+cat("Estimación de mu (media de la actualización) =", round(x_bar, 4), "\n\n")
+```
+
+$\hat{\mu} = \bar{X}_n = \frac{1}{200}\sum_{i=1}^{200} X_i \approx 42{,}9895$
+
+### Ejercicio 3: Construcción del test de hipótesis
+
+(3.a) Definición del test La pregunta que nos hacemos es: ¿ $μ>μ_0$ ?
+
+-   $H_0: \mu \leq \mu_0$ $(\mu =\mu_0)$ —\> la actualización no aumenta el "play-delay".
+
+-   $H_1: \mu > \mu_0$ —\> la actualización aumenta el "play-delay".
+
+Usamos el estadístico: $T = \frac{\bar{X} - \mu_0}{\sigma_0 / \sqrt{n}}$ bajo $H_0$
+
+Elegimos H0:μ≤μ porque el error que más nos importa evitar es mandar el código a revisión cuando en realidad no hay ningún problema. Ese es el error de tipo I: rechazar H0 cuando es verdadera. Al fijar α=0.05 garantizamos que esto pase a lo sumo el 5% de las veces.
+
+(3.b) Región de rechazo y estadístico.
+
+Como asumimos varianza conocida $\sigma_0^2$ y $X_i \sim \mathcal{N}(\mu, \sigma_0^2)$ i.i.d. , el estadístico es:
+
+$T = \frac{\bar{X}_n - \mu_0}{\sigma_0 / \sqrt{n}} {\sim} \mathcal{N}(0, 1)$ bajo $H_0$
+
+Bajo $H_0$ (con $\mu = \mu_0$), $T$ es normal estándar.
+
+```{r}
+alpha     <- 0.05
+z_critico <- qnorm(1 - alpha)
+cat("z_{1-alpha} a nivel", alpha, "=", round(z_critico, 4), "\n")
+cat("Región de rechazo: T >", round(z_critico, 4), "\n\n")
+```
+
+Como $H_1$ es "$\mu > \mu_0$", valores grandes de $T$ son evidencia contra $H_0$. La región de rechazo es:
+
+$\mathcal{R} =\{ {T > z_{1-\alpha}}\} = \{{T > z_{0,95}}\} = \{{T > 1,6449}\}$
+
+### Ejercicio 4: Toma de decisiones
+
+###(4.a) ¿Qué decisión se toma basandose en las nuevas 200 observaciones? ¿Se debe enviar el código para revision?
+
+```{r}
+alpha     <- 0.05
+t_obs     <- (x_bar - mu0) / (sqrt(sigma2_0) / sqrt(n))
+z_critico <- qnorm(1 - alpha)
+
+cat("Estadístico T observado:", round(t_obs, 4), "\n")
+cat("Valor crítico z(0.95):", round(z_critico, 4), "\n")
+
+if (t_obs > z_critico) {
+  cat("Decisión: Rechazo H0. Se envía el código a revisión.\n")
+} else {
+  cat("Decisión: No rechazo H0. No hay evidencia de aumento en el play-delay.\n")
+}
+```
+
+Como $T_{obs} = 1{,}5706 < z_{0{,}95} = 1{,}6449$, **no se rechaza** $H_0$. No hay evidencia suficiente de que la nueva versión aumente el play-delay, por lo que **no se envía el código a revisión**.
+
+(4.b)¿Cómo cambia la región de rechazo con α' = 0.01? ¿Cómo afecta α a la región de rechazo en general?
+
+```{r}
+z_critico_01 <- qnorm(1 - 0.01)
+cat("Valor crítico con α = 0.05:", round(z_critico, 4), "\n")
+cat("Valor crítico con α = 0.01:", round(z_critico_01, 4), "\n")
+```
+
+Con $\alpha' = 0.01 < 0.05$, el valor crítico es **mayor** (2.3263 vs 1.6449), por lo que la región de rechazo es más chica y se necesita evidencia más fuerte para rechazar $H_0$. En consecuencia, se envían **menos** actualizaciones a auditar, ya que el test es más exigente. Simétricamente, con $\alpha' > 0.05$ el valor crítico disminuye, la región de rechazo se amplía y se auditan **más** actualizaciones: cualquier desvío moderado alcanza para rechazar $H_0$.
+
+(4.c) Evaluación para α ∈ {0.01, 0.02, ..., 0.10}. ¿Cuál es el α más chico para el que se rechaza H0?
+
+```{r}
+niveles    <- seq(0.01, 0.10, by = 0.01)
+z_criticos <- qnorm(1 - niveles)
+rechazos   <- t_obs > z_criticos
+
+resultados <- data.frame(
+  alpha     = niveles,
+  z_critico = round(z_criticos, 4),
+  Rechazo   = rechazos
+)
+print(resultados)
+
+alpha_min <- min(resultados$alpha[resultados$Rechazo])
+cat("El α más chico para el que se rechaza H0 es:", alpha_min, "\n")
+```
+
+Con la grilla de 2 decimales, el α mínimo de rechazo es **0.06**.
+
+(4.d) Refinamiento de la grilla a 3 decimales.
+
+```{r}
+niveles_fino    <- seq(0.001, 0.100, by = 0.001)
+z_criticos_fino <- qnorm(1 - niveles_fino)
+rechazos_fino   <- t_obs > z_criticos_fino
+
+alpha_min_fino <- min(niveles_fino[rechazos_fino])
+cat("El α más chico para el que se rechaza H0 (3 decimales):", alpha_min_fino, "\n")
+```
+
+Con la grilla fina, el α mínimo de rechazo es **0.059**, que es una aproximación al p-valor (calculado formalmente en el ejercicio 6).
+
+### Ejercicio 5: Significancia y error de tipo 1
+
+Simulación bajo H0 con n = 200 y α = 0.05. ¿Se toma la decisión correcta?
+
+```{r}
+set.seed(1) 
+sim     <- rnorm(200, mean = mu0, sd = sqrt(sigma2_0))
+t_sim   <- (mean(sim) - mu0) / (sqrt(sigma2_0) / sqrt(200))
+
+cat("T simulado:", round(t_sim, 4), "\n")
+cat("Valor crítico:", round(z_critico, 4), "\n")
+
+if (t_sim > z_critico) {
+  cat("Decisión: Rechazo H0 (error de tipo I).\n")
+} else {
+  cat("Decisión: No rechazo H0 (decisión correcta).\n")
+}
+```
+
+Como $T_{sim} = 1{,}5088 < 1{,}6449$, **no se rechaza** $H_0$, que es la decisión correcta ya que simulamos bajo $H_0$ verdadera.
+
+(5.b) Repetición R = 10000 veces. ¿Qué porcentaje toma la decisión correcta?
+
+```{r}
+set.seed(1)
+R         <- 10000
+rechazos  <- replicate(R, {
+  sim <- rnorm(200, mean = mu0, sd = sqrt(sigma2_0))
+  t   <- (mean(sim) - mu0) / (sqrt(sigma2_0) / sqrt(200))
+  t > qnorm(0.95)
+})
+
+cat("Porcentaje de rechazos (error tipo 1):", mean(rechazos) * 100, "%\n")
+cat("Porcentaje de decisiones correctas:", (1 - mean(rechazos)) * 100, "%\n")
+```
+
+Se rechaza $H_0$ aproximadamente un **5%** de las veces, lo cual es esperable: al simular bajo $H_0$ verdadera con $\alpha=0.05$, esto es esperable: por construcción del test, la probabilidad de cometer error tipo I es exactamente el $\alpha=0.05$. La decisión correcta se toma el **95%** de las veces.
+
+#### Ejercicio 6: Dos formas de ver el p-valor. (6.a)Probabilidad de observar un T como el observado o más extremo, asumiendo H0 verdadera.
+
+```{r}
+p_valor <- 1 - pnorm(t_obs)
+cat("p-valor:", round(p_valor, 6), "\n")
+```
+
+El p-valor es $P(T \geq T_{obs} \mid H_0) = 1 - \Phi(1{,}5706) \approx 0{,}0581$.
+
+(6.b) Comparación con el resultado del ítem (4.d).
+
+En (4.d) encontramos que el α mínimo para rechazar $H_0$ con grilla de 3 decimales es **0.059**, que coincide con el p-valor calculado en (6.a) (**0.0581**). Esto ilustra la primera interpretación del p-valor: es el menor nivel de significancia α para el que los datos observados llevan a rechazar $H_0$.
+
+### Ejercicio 7: ¿Cómo sé que los datos son normales?
+
+(7.a) Formulación de $H_0$ y $H_1$ en este contexto
+
+Para los datos históricos:
+
+-   $H_0$ (hipótesis nula): los datos históricos del *play-delay* provienen de una distribución normal.
+-   $H_1$ (hipótesis alternativa): los datos históricos del *play-delay* no provienen de una distribución normal.
+
+Para los datos de la nueva versión:
+
+-   $H_0$ (hipótesis nula): los datos de la nueva versión provienen de una distribución normal.
+-   $H_1$ (hipótesis alternativa): los datos de la nueva versión no provienen de una distribución normal.
+
+(7.b) Test para datos históricos y nuevos. P-valor de cada uno.
+
+```{r}
+shapiro_nueva <- shapiro.test(x_new)
+
+# Datos históricos (n = 20.038 > 5000, tomamos submuestra aleatoria ya que Shapiro test no acepta mas de 5000 datos)
+set.seed(1)
+sub_historicos <- sample(x_historico, size = 5000, replace = FALSE)
+shapiro_hist   <- shapiro.test(sub_historicos)
+
+shapiro_hist
+shapiro_nueva
+```
+
+Se aplicó el test de Shapiro-Wilk a los datos de la nueva versión y a una submuestra aleatoria de 5000 datos históricos (la función `shapiro.test` de R sólo admite muestras de hasta 5000 observaciones). El p-valor de los datos históricos fue $=0,4392$ y el de los datos nuevos $=0,867$. En ambos casos los p-valores son mayores a $0,05$, por lo que **no se rechaza** $H_0$. Esto indica que es razonable asumir normalidad en ambas muestras, lo cual valida el uso del test en los ejercicios anteriores.
